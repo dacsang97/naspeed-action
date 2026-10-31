@@ -34,12 +34,12 @@ inputs:
     default: 'true'
     required: false
   cache:
-    description: 'Restore the store from the GitHub Actions cache (and save it, see cache-save)'
-    default: 'true'
+    description: 'Carry the store in the GitHub Actions cache: auto (GitHub-hosted runners only; a self-hosted runner keeps its store on disk), true or false'
+    default: 'auto'
     required: false
   cache-key:
-    description: 'Cache key prefix. Use one per kind of job (test, release) so their stores stay apart'
-    default: 'naspeed'
+    description: 'Cache slot for this step. Empty: derived from the workflow, the job and what the step runs, so every kind of job gets its own slot without naming one'
+    default: ''
     required: false
   cache-save:
     description: 'When to save the store: auto (pushes to the default branch only), true or false'

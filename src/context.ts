@@ -78,6 +78,19 @@ export const parseMaxGb = (value: string): number => {
   return gb;
 };
 
+/**
+ * `auto` (default): carry the store in the GitHub Actions cache on
+ * GitHub-hosted runners, which start empty, and not on self-hosted ones,
+ * where `~/.naspeed` already persists between jobs and runs.
+ */
+export function resolveCache(input: string, runnerEnvironment: string | undefined): boolean {
+  const v = (input || 'auto').trim().toLowerCase();
+  if (v === 'auto') return runnerEnvironment !== 'self-hosted';
+  if (v === 'true') return true;
+  if (v === 'false') return false;
+  throw new Error(`cache must be auto, true or false, got ${JSON.stringify(input)}`);
+}
+
 export function getInputs(): Inputs {
   return {
     version: core.getInput('version') || 'latest',
@@ -87,8 +100,9 @@ export function getInputs(): Inputs {
     workdir: path.resolve(process.env.GITHUB_WORKSPACE || process.cwd(), core.getInput('workdir') || '.'),
     installOnly: core.getBooleanInput('install-only'),
     summary: core.getBooleanInput('summary'),
-    cache: core.getBooleanInput('cache'),
-    cacheKey: core.getInput('cache-key') || 'naspeed',
+    cache: resolveCache(core.getInput('cache'), process.env.RUNNER_ENVIRONMENT),
+    // Empty: one slot per workflow job, derived automatically.
+    cacheKey: core.getInput('cache-key'),
     cacheSave: parseCacheSave(core.getInput('cache-save')),
     cacheMaxGb: parseMaxGb(core.getInput('cache-max-gb')),
     token: core.getInput('token')

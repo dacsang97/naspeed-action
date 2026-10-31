@@ -1,3 +1,4 @@
+import * as crypto from 'node:crypto';
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
@@ -17,26 +18,53 @@ import type {SaveOutcome} from './report';
 export const transferDir = (home: string = os.homedir()): string => path.join(home, '.naspeed-ci');
 
 export interface KeyParts {
-  prefix: string;
+  /** The job's own slot: `cache-key` when set, otherwise `autoScope`. */
+  scope: string;
   os: string;
   arch: string;
   rustc: string;
   lockHash: string;
 }
 
+/** Lowercase `[a-z0-9-]`, at most `max` chars: safe inside a cache key. */
+const slug = (s: string, max: number): string =>
+  s
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, max) || 'job';
+
 /**
- * Cache keys: OS, arch and compiler keep incompatible artifacts apart and the
- * lockfile hash narrows to the same dependency set. Keys are immutable, so
- * every save adds the run to the key; restore picks the newest entry that
- * shares a prefix, falling back to any lockfile for the same compiler.
+ * A slot per kind of job without naming one: the workflow and job ids, plus
+ * a short hash of what the step runs, so matrix legs that run different
+ * commands (features, targets) keep their stores apart too.
  */
-export const cacheKeys = (
-  p: KeyParts,
-  run: {id: string; attempt: string; job: string}
-): {key: string; restoreKeys: string[]} => {
-  const compiler = `${p.prefix}-${p.os}-${p.arch}-${p.rustc}-`;
-  const base = `${compiler}${p.lockHash}-`;
-  return {key: `${base}${run.id}-${run.attempt}-${run.job}`, restoreKeys: [base, compiler]};
+export const autoScope = (
+  workflow: string,
+  job: string,
+  step: {args: string[]; setupArgs: string[]; workdir: string}
+): string => {
+  const what = crypto
+    .createHash('sha256')
+    .update(JSON.stringify([step.args, step.setupArgs, step.workdir]))
+    .digest('hex')
+    .slice(0, 8);
+  return `${slug(workflow, 40)}-${slug(job, 40)}-${what}`;
+};
+
+/**
+ * Cache keys: OS, arch and compiler keep incompatible artifacts apart, the
+ * scope keeps each kind of job in its own slot and the lockfile hash narrows
+ * to the same dependency set. Keys are immutable, so every save adds the run
+ * to the key. Restore takes the newest entry of the same job and lockfile,
+ * then the same job with any lockfile, then any job for the same compiler
+ * (a warm store from another job beats a cold one).
+ */
+export const cacheKeys = (p: KeyParts, run: {id: string; attempt: string}): {key: string; restoreKeys: string[]} => {
+  const compiler = `naspeed-${p.os}-${p.arch}-${p.rustc}-`;
+  const job = `${compiler}${p.scope}-`;
+  const base = `${job}${p.lockHash}-`;
+  return {key: `${base}${run.id}-${run.attempt}`, restoreKeys: [base, job, compiler]};
 };
 
 /**

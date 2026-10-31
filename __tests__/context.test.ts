@@ -1,5 +1,5 @@
 import {describe, expect, it} from 'vite-plus/test';
-import {expandHome, parseCacheSave, parseMaxGb, splitArgs} from '../src/context';
+import {expandHome, parseCacheSave, parseMaxGb, resolveCache, splitArgs} from '../src/context';
 
 describe('expandHome', () => {
   it('expands ~ and ~/ only', () => {
@@ -43,5 +43,19 @@ describe('parseMaxGb', () => {
     expect(parseMaxGb('2.5')).toBe(2.5);
     expect(() => parseMaxGb('0')).toThrow();
     expect(() => parseMaxGb('lots')).toThrow();
+  });
+});
+
+describe('resolveCache', () => {
+  it('auto uses the Actions cache on GitHub-hosted runners only', () => {
+    expect(resolveCache('auto', 'github-hosted')).toBe(true);
+    expect(resolveCache('', undefined)).toBe(true);
+    expect(resolveCache('auto', 'self-hosted')).toBe(false);
+  });
+
+  it('true and false override the runner', () => {
+    expect(resolveCache('true', 'self-hosted')).toBe(true);
+    expect(resolveCache('false', 'github-hosted')).toBe(false);
+    expect(() => resolveCache('yes', undefined)).toThrow(/auto, true or false/);
   });
 });

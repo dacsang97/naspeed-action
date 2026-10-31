@@ -46,12 +46,19 @@ async function install(inputs: context.Inputs): Promise<{tag: string; target: st
 async function restore(
   inputs: context.Inputs,
   naspeed: string
-): Promise<{restored: string; save?: SaveState; skipped?: string}> {
+): Promise<{restored: string; scope: string; save?: SaveState; skipped?: string}> {
   const start = Date.now();
   const workspace = process.env.GITHUB_WORKSPACE || process.cwd();
+  const scope =
+    inputs.cacheKey ||
+    storeCache.autoScope(process.env.GITHUB_WORKFLOW || 'workflow', process.env.GITHUB_JOB || 'job', {
+      args: inputs.args,
+      setupArgs: inputs.setupArgs,
+      workdir: path.relative(workspace, inputs.workdir) || '.'
+    });
   const keys = storeCache.cacheKeys(
     {
-      prefix: inputs.cacheKey,
+      scope,
       os: process.env.RUNNER_OS || os.platform(),
       arch: process.env.RUNNER_ARCH || os.arch(),
       rustc: await storeCache.rustcVersion(workspace),
@@ -59,8 +66,7 @@ async function restore(
     },
     {
       id: process.env.GITHUB_RUN_ID || '0',
-      attempt: process.env.GITHUB_RUN_ATTEMPT || '1',
-      job: process.env.GITHUB_JOB || 'job'
+      attempt: process.env.GITHUB_RUN_ATTEMPT || '1'
     }
   );
   const dir = storeCache.transferDir();
@@ -78,10 +84,15 @@ async function restore(
   });
   if (!save) {
     ui.info('this run will not save the store', {cache_save: inputs.cacheSave, event});
-    return {restored: matched || '', skipped: `${event || 'this event'}; cache-save: ${inputs.cacheSave}`};
+    return {
+      restored: matched || '',
+      scope,
+      skipped: `${event || 'this event'}; cache-save: ${inputs.cacheSave}`
+    };
   }
   return {
     restored: matched || '',
+    scope,
     save: {naspeed, store: inputs.store, dir, key: keys.key, maxGb: inputs.cacheMaxGb}
   };
 }
@@ -127,10 +138,12 @@ async function run(): Promise<void> {
 
   let restored: string | undefined;
   let skipped: string | undefined;
+  let scope = inputs.cacheKey;
   if (inputs.cache) {
     const r = await restore(inputs, naspeed);
     restored = r.restored;
     skipped = r.skipped;
+    scope = r.scope;
     if (r.save) core.saveState(SAVE, JSON.stringify(r.save));
   }
 
@@ -140,7 +153,7 @@ async function run(): Promise<void> {
     before,
     version,
     target,
-    cacheKey: inputs.cacheKey,
+    cacheKey: scope,
     restored,
     skipped
   };

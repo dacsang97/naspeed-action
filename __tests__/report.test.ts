@@ -48,7 +48,7 @@ describe('renderReport', () => {
         '- **Store:** ♻️ restored `test-Linux-X64-1.99.1-abc-41-1-test`',
         '- **Saved:** 💾 `test-Linux-X64-1.99.1-abc-42-1-test`',
         '',
-        '<sub>naspeed v0.1.1 · x86_64-unknown-linux-musl · cache-key `test`</sub>',
+        '<sub>naspeed v0.1.1 · x86_64-unknown-linux-musl · cache scope `test`</sub>',
         ''
       ].join('\n')
     );

@@ -1,19 +1,39 @@
 import {describe, expect, it} from 'vite-plus/test';
-import {cacheKeys, shouldSave, transferDir} from '../src/store-cache';
+import {autoScope, cacheKeys, shouldSave, transferDir} from '../src/store-cache';
 
 describe('cacheKeys', () => {
   const {key, restoreKeys} = cacheKeys(
-    {prefix: 'test', os: 'Linux', arch: 'X64', rustc: '1.98.0', lockHash: 'abc'},
-    {id: '42', attempt: '1', job: 'test'}
+    {scope: 'ci-test-1a2b3c4d', os: 'Linux', arch: 'X64', rustc: '1.98.0', lockHash: 'abc'},
+    {id: '42', attempt: '1'}
   );
 
   it('makes every save a new key', () => {
-    expect(key).toBe('test-Linux-X64-1.98.0-abc-42-1-test');
+    expect(key).toBe('naspeed-Linux-X64-1.98.0-ci-test-1a2b3c4d-abc-42-1');
   });
 
-  it('restores the same lockfile first, then any lockfile for the compiler', () => {
-    expect(restoreKeys).toEqual(['test-Linux-X64-1.98.0-abc-', 'test-Linux-X64-1.98.0-']);
+  it('restores the same job and lockfile, then the same job, then any job for the compiler', () => {
+    expect(restoreKeys).toEqual([
+      'naspeed-Linux-X64-1.98.0-ci-test-1a2b3c4d-abc-',
+      'naspeed-Linux-X64-1.98.0-ci-test-1a2b3c4d-',
+      'naspeed-Linux-X64-1.98.0-'
+    ]);
     for (const prefix of restoreKeys) expect(key.startsWith(prefix)).toBe(true);
+  });
+});
+
+describe('autoScope', () => {
+  const step = {args: ['test', '--locked'], setupArgs: [], workdir: '.'};
+
+  it('names the slot after the workflow and job, safe for a cache key', () => {
+    expect(autoScope('CI / Rust', 'test', step)).toMatch(/^ci-rust-test-[0-9a-f]{8}$/);
+  });
+
+  it('separates steps that run different commands in the same job', () => {
+    expect(autoScope('ci', 'test', step)).toBe(autoScope('ci', 'test', {...step}));
+    expect(autoScope('ci', 'test', step)).not.toBe(
+      autoScope('ci', 'test', {...step, args: ['test', '--features', 'x']})
+    );
+    expect(autoScope('ci', 'clippy', step)).not.toBe(autoScope('ci', 'test', step));
   });
 });
 

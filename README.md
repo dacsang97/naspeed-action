@@ -47,7 +47,6 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable # install Rust first
       - uses: dacsang97/naspeed-action@v1
         with:
-          cache-key: test
           args: test --locked # `ns test`: cargo test + test result cache
 ```
 
@@ -56,23 +55,24 @@ Leave `args` empty to only install and set up; later `run:` steps that call
 
 ```yaml
 - uses: dacsang97/naspeed-action@v1
-  with:
-    cache-key: clippy
-- run: cargo clippy --locked --all-targets -- -D warnings
+- run: ns check --locked # rustfmt --check, then clippy -D warnings
 ```
 
 By default the store is saved only by pushes to the default branch. Pull
 requests, forks included, restore it but never write it, so a pull request
 cannot plant artifacts that `main` builds would pick up later.
 
-Give each kind of job its own `cache-key`, so a release build does not evict
-the store a test job relies on:
+There is no cache key to name. Each step gets its own slot from the workflow,
+the job and what the step runs (`args`, `setup-args`, `workdir`), so a release
+build never evicts the store a test job relies on, and matrix legs running
+different commands stay apart. On a self-hosted runner the store already
+persists on disk, so the GitHub Actions cache is skipped (`cache: auto`).
 
 ```yaml
 - uses: dacsang97/naspeed-action@v1
   with:
-    cache-key: release
     setup-args: --cross --install-targets
+    args: release --target x86_64-unknown-linux-musl
 ```
 
 Only put naspeed on `PATH`, without touching cargo's config or the cache:
@@ -94,8 +94,8 @@ Only put naspeed on `PATH`, without touching cargo's config or the cache:
 | `store`        | `~/.naspeed`          | naspeed store directory                                                                               |
 | `setup-args`   |                       | Extra arguments for `naspeed setup`, e.g. `--cross --install-targets`                                 |
 | `install-only` | `false`               | Only install naspeed; no `naspeed setup`, no cache                                                    |
-| `cache`        | `true`                | Restore the store from the Actions cache (and save it, see `cache-save`)                              |
-| `cache-key`    | `naspeed`             | Cache key prefix; use one per kind of job                                                             |
+| `cache`        | `auto`                | `auto` (GitHub-hosted runners only; self-hosted runners keep the store on disk), `true` or `false`    |
+| `cache-key`    |                       | Override the automatic cache slot (workflow, job and step); rarely needed                             |
 | `cache-save`   | `auto`                | `auto` (pushes to the default branch only), `true` or `false`                                         |
 | `cache-max-gb` | `3`                   | Size cap of the exported store (GitHub allows 10 GB per repository)                                   |
 | `token`        | `${{ github.token }}` | Token used to look up naspeed releases                                                                |
@@ -131,10 +131,13 @@ that point, since the post step only runs for successful jobs.
 ## Cache keys
 
 Entries are saved as
-`<cache-key>-<os>-<arch>-<rustc version>-<hash of **/Cargo.lock>-<run id>-<attempt>-<job>`.
-Keys are immutable, so every saved run is a new entry; a restore takes the
-newest entry with the same lockfile, then falls back to any entry for the same
-compiler. GitHub evicts the least recently used entries past 10 GB.
+`naspeed-<os>-<arch>-<rustc version>-<slot>-<hash of **/Cargo.lock>-<run id>-<attempt>`,
+where the slot is `cache-key` when set, otherwise
+`<workflow>-<job>-<hash of args, setup-args and workdir>`. Keys are immutable,
+so every saved run is a new entry. A restore takes the newest entry of the same
+slot and lockfile, then the same slot with any lockfile, then any slot for the
+same compiler: a warm store from another job beats a cold one. GitHub evicts the
+least recently used entries past 10 GB.
 
 The exported store travels in `~/.naspeed-ci`, the same directory the
 workflows from `ns ci init` use.

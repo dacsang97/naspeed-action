@@ -106,7 +106,8 @@ export function renderReport(d: ReportData): string {
     case 'off':
       break;
   }
-  lines.push('', `<sub>naspeed v${d.version} · ${d.target} · cache-key \`${d.cacheKey}\`</sub>`, '');
+  const slot = d.cacheKey ? ` · cache scope \`${d.cacheKey}\`` : '';
+  lines.push('', `<sub>naspeed v${d.version} · ${d.target}${slot}</sub>`, '');
   return lines.join('\n');
 }
 
