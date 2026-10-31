@@ -7,7 +7,8 @@ import {autoScope, cacheKeys, shouldSave, storeIsWarm, transferDir} from '../src
 describe('cacheKeys', () => {
   const {key, restoreKeys} = cacheKeys(
     {scope: 'ci-test-1a2b3c4d', os: 'Linux', arch: 'X64', rustc: '1.98.0', lockHash: 'abc'},
-    {id: '42', attempt: '1'}
+    {id: '42', attempt: '1'},
+    true
   );
 
   it('makes every save a new key', () => {
@@ -21,6 +22,17 @@ describe('cacheKeys', () => {
       'naspeed-Linux-X64-1.98.0-'
     ]);
     for (const prefix of restoreKeys) expect(key.startsWith(prefix)).toBe(true);
+  });
+});
+
+describe('cacheKeys with an explicit cache-key', () => {
+  it('never falls back to other jobs', () => {
+    const {restoreKeys} = cacheKeys(
+      {scope: 'e2e-7-1', os: 'Linux', arch: 'X64', rustc: '1.98.0', lockHash: 'abc'},
+      {id: '7', attempt: '1'},
+      false
+    );
+    expect(restoreKeys).toEqual(['naspeed-Linux-X64-1.98.0-e2e-7-1-abc-', 'naspeed-Linux-X64-1.98.0-e2e-7-1-']);
   });
 });
 

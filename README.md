@@ -137,8 +137,9 @@ Entries are saved as
 where the slot is `cache-key` when set, otherwise
 `<workflow>-<job>-<hash of args, setup-args and workdir>`. Keys are immutable,
 so every saved run is a new entry. A restore takes the newest entry of the same
-slot and lockfile, then the same slot with any lockfile, then any slot for the
-same compiler: a warm store from another job beats a cold one. GitHub evicts the
+slot and lockfile, then the same slot with any lockfile. An automatic slot
+then falls back to any slot for the same compiler, since a warm store from
+another job beats a cold one; an explicit `cache-key` stays within its own slot. GitHub evicts the
 least recently used entries past 10 GB.
 
 The exported store travels in `~/.naspeed-ci`, the same directory the

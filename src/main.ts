@@ -67,7 +67,8 @@ async function restore(
     {
       id: process.env.GITHUB_RUN_ID || '0',
       attempt: process.env.GITHUB_RUN_ATTEMPT || '1'
-    }
+    },
+    !inputs.cacheKey
   );
   const dir = storeCache.transferDir();
   ui.info('restoring store', {prefix: keys.restoreKeys[0]});

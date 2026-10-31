@@ -57,14 +57,20 @@ export const autoScope = (
  * scope keeps each kind of job in its own slot and the lockfile hash narrows
  * to the same dependency set. Keys are immutable, so every save adds the run
  * to the key. Restore takes the newest entry of the same job and lockfile,
- * then the same job with any lockfile, then any job for the same compiler
- * (a warm store from another job beats a cold one).
+ * then the same job with any lockfile. An automatic scope then falls back to
+ * any job for the same compiler (a warm store from another job beats a cold
+ * one); an explicit `cache-key` asks to stay apart, so it never does.
  */
-export const cacheKeys = (p: KeyParts, run: {id: string; attempt: string}): {key: string; restoreKeys: string[]} => {
+export const cacheKeys = (
+  p: KeyParts,
+  run: {id: string; attempt: string},
+  shareAcrossJobs: boolean
+): {key: string; restoreKeys: string[]} => {
   const compiler = `naspeed-${p.os}-${p.arch}-${p.rustc}-`;
   const job = `${compiler}${p.scope}-`;
   const base = `${job}${p.lockHash}-`;
-  return {key: `${base}${run.id}-${run.attempt}`, restoreKeys: [base, job, compiler]};
+  const restoreKeys = shareAcrossJobs ? [base, job, compiler] : [base, job];
+  return {key: `${base}${run.id}-${run.attempt}`, restoreKeys};
 };
 
 /**
