@@ -65,8 +65,10 @@ cannot plant artifacts that `main` builds would pick up later.
 There is no cache key to name. Each step gets its own slot from the workflow,
 the job and what the step runs (`args`, `setup-args`, `workdir`), so a release
 build never evicts the store a test job relies on, and matrix legs running
-different commands stay apart. On a self-hosted runner the store already
-persists on disk, so the GitHub Actions cache is skipped (`cache: auto`).
+different commands stay apart. A self-hosted runner whose store already
+holds entries skips the GitHub Actions cache (`cache: auto`): the store persists
+on its disk. An ephemeral runner, or a persistent one on its first run, starts
+empty and restores and saves like a GitHub-hosted runner.
 
 ```yaml
 - uses: dacsang97/naspeed-action@v1
@@ -94,7 +96,7 @@ Only put naspeed on `PATH`, without touching cargo's config or the cache:
 | `store`        | `~/.naspeed`          | naspeed store directory                                                                               |
 | `setup-args`   |                       | Extra arguments for `naspeed setup`, e.g. `--cross --install-targets`                                 |
 | `install-only` | `false`               | Only install naspeed; no `naspeed setup`, no cache                                                    |
-| `cache`        | `auto`                | `auto` (GitHub-hosted runners only; self-hosted runners keep the store on disk), `true` or `false`    |
+| `cache`        | `auto`                | `auto` (skipped only on a self-hosted runner whose store is already warm), `true` or `false`          |
 | `cache-key`    |                       | Override the automatic cache slot (workflow, job and step); rarely needed                             |
 | `cache-save`   | `auto`                | `auto` (pushes to the default branch only), `true` or `false`                                         |
 | `cache-max-gb` | `3`                   | Size cap of the exported store (GitHub allows 10 GB per repository)                                   |

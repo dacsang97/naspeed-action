@@ -81,6 +81,15 @@ export const shouldSave = (
   );
 };
 
+/** True when the store already holds cache entries (not just its empty layout). */
+export const storeIsWarm = (store: string): boolean => {
+  try {
+    return fs.readdirSync(path.join(store, 'entries')).length > 0;
+  } catch {
+    return false;
+  }
+};
+
 export const defaultBranch = (): string | undefined => {
   const eventPath = process.env.GITHUB_EVENT_PATH;
   if (!eventPath || !fs.existsSync(eventPath)) return undefined;

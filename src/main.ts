@@ -139,7 +139,13 @@ async function run(): Promise<void> {
   let restored: string | undefined;
   let skipped: string | undefined;
   let scope = inputs.cacheKey;
-  if (inputs.cache) {
+  const runnerEnvironment = process.env.RUNNER_ENVIRONMENT;
+  const storeWarm = storeCache.storeIsWarm(inputs.store);
+  const cache = context.useActionsCache(inputs.cache, runnerEnvironment, storeWarm);
+  if (!cache && inputs.cache === 'auto') {
+    ui.info('self-hosted runner with a warm store: Actions cache not used', {store: inputs.store});
+  }
+  if (cache) {
     const r = await restore(inputs, naspeed);
     restored = r.restored;
     skipped = r.skipped;
@@ -169,7 +175,7 @@ async function run(): Promise<void> {
     if (code !== 0) {
       // The post step only runs for a successful job: report now.
       if (state) {
-        await writeReport(state, inputs.cache ? {status: 'skipped', reason: 'the job failed'} : {status: 'off'});
+        await writeReport(state, cache ? {status: 'skipped', reason: 'the job failed'} : {status: 'off'});
         // Reported: a post step that still runs (continue-on-error) must not repeat it.
         core.saveState(REPORT, '');
       }

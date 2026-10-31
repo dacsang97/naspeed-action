@@ -1,5 +1,5 @@
 import {describe, expect, it} from 'vite-plus/test';
-import {expandHome, parseCacheSave, parseMaxGb, resolveCache, splitArgs} from '../src/context';
+import {expandHome, parseCacheSave, parseMaxGb, parseCacheMode, splitArgs, useActionsCache} from '../src/context';
 
 describe('expandHome', () => {
   it('expands ~ and ~/ only', () => {
@@ -46,16 +46,22 @@ describe('parseMaxGb', () => {
   });
 });
 
-describe('resolveCache', () => {
-  it('auto uses the Actions cache on GitHub-hosted runners only', () => {
-    expect(resolveCache('auto', 'github-hosted')).toBe(true);
-    expect(resolveCache('', undefined)).toBe(true);
-    expect(resolveCache('auto', 'self-hosted')).toBe(false);
+describe('useActionsCache', () => {
+  it('auto uses it on GitHub-hosted runners and on self-hosted ones with an empty store', () => {
+    expect(useActionsCache('auto', 'github-hosted', true)).toBe(true);
+    expect(useActionsCache('auto', undefined, false)).toBe(true);
+    expect(useActionsCache('auto', 'self-hosted', false)).toBe(true);
+    expect(useActionsCache('auto', 'self-hosted', true)).toBe(false);
   });
 
   it('true and false override the runner', () => {
-    expect(resolveCache('true', 'self-hosted')).toBe(true);
-    expect(resolveCache('false', 'github-hosted')).toBe(false);
-    expect(() => resolveCache('yes', undefined)).toThrow(/auto, true or false/);
+    expect(useActionsCache('true', 'self-hosted', true)).toBe(true);
+    expect(useActionsCache('false', 'github-hosted', false)).toBe(false);
+  });
+
+  it('rejects other values', () => {
+    expect(parseCacheMode('')).toBe('auto');
+    expect(parseCacheMode(' TRUE ')).toBe('true');
+    expect(() => parseCacheMode('yes')).toThrow(/auto, true or false/);
   });
 });

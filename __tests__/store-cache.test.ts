@@ -1,5 +1,8 @@
 import {describe, expect, it} from 'vite-plus/test';
-import {autoScope, cacheKeys, shouldSave, transferDir} from '../src/store-cache';
+import * as fs from 'node:fs';
+import * as os from 'node:os';
+import * as path from 'node:path';
+import {autoScope, cacheKeys, shouldSave, storeIsWarm, transferDir} from '../src/store-cache';
 
 describe('cacheKeys', () => {
   const {key, restoreKeys} = cacheKeys(
@@ -56,5 +59,17 @@ describe('shouldSave', () => {
 describe('transferDir', () => {
   it('is the ns ci init cache directory', () => {
     expect(transferDir('/home/runner')).toBe('/home/runner/.naspeed-ci');
+  });
+});
+
+describe('storeIsWarm', () => {
+  it('is false for a missing or empty store and true once it holds entries', () => {
+    const store = fs.mkdtempSync(path.join(os.tmpdir(), 'naspeed-store-'));
+    expect(storeIsWarm(path.join(store, 'missing'))).toBe(false);
+    fs.mkdirSync(path.join(store, 'entries'));
+    expect(storeIsWarm(store)).toBe(false);
+    fs.mkdirSync(path.join(store, 'entries', 'ab'));
+    expect(storeIsWarm(store)).toBe(true);
+    fs.rmSync(store, {recursive: true, force: true});
   });
 });
