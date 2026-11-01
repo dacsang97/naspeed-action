@@ -45,8 +45,10 @@ jobs:
       - id: naspeed
         uses: ./
         with:
-          # Per attempt, so a re-run starts cold instead of restoring attempt 1.
-          cache-key: e2e-${{ github.run_id }}-${{ github.run_attempt }}
+          # One key per run. The action appends the run attempt to the saved
+          # key and restores by prefix, so reuse finds the newest store even
+          # when only some warm jobs were re-run.
+          cache-key: e2e-${{ github.run_id }}
           cache-save: 'true'
           args: test
           workdir: ${{ runner.temp }}/app
@@ -56,7 +58,8 @@ jobs:
           CACHE_HIT: ${{ steps.naspeed.outputs.cache-hit }}
         run: |
           test -n "$VERSION"
-          test "$CACHE_HIT" = false
+          # A re-run restores the store an earlier attempt saved.
+          test "$CACHE_HIT" = false || test "$GITHUB_RUN_ATTEMPT" -gt 1
           naspeed --version | grep -Fx "naspeed $VERSION"
           ns --version
       - name: cargo goes through naspeed
@@ -84,8 +87,7 @@ jobs:
       - id: naspeed
         uses: ./
         with:
-          # Per attempt, so a re-run starts cold instead of restoring attempt 1.
-          cache-key: e2e-${{ github.run_id }}-${{ github.run_attempt }}
+          cache-key: e2e-${{ github.run_id }}
           cache-save: 'false'
           args: test
           workdir: ${{ runner.temp }}/app
