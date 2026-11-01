@@ -11,7 +11,7 @@ export const RELEASE_REPO = 'dacsang97/naspeed';
 
 /**
  * Release target for a runner, matching the archives built by naspeed's
- * release-binaries workflow (static musl builds on Linux).
+ * release-binaries workflow (static musl builds on Linux, MSVC on Windows).
  */
 export const targetFor = (platform: string, arch: string): string => {
   const key = `${platform}-${arch}`;
@@ -24,10 +24,22 @@ export const targetFor = (platform: string, arch: string): string => {
       return 'x86_64-apple-darwin';
     case 'darwin-arm64':
       return 'aarch64-apple-darwin';
+    case 'win32-x64':
+      return 'x86_64-pc-windows-msvc';
+    case 'win32-arm64':
+      return 'aarch64-pc-windows-msvc';
     default:
-      throw new Error(`naspeed has no build for ${key} (supported: Linux and macOS, x64 and arm64)`);
+      throw new Error(`naspeed has no build for ${key} (supported: Linux, macOS and Windows, x64 and arm64)`);
   }
 };
+
+const isWindows = (target: string): boolean => target.includes('-windows-');
+
+/** Archive extension: zip for Windows targets, tar.gz elsewhere. */
+export const archiveExt = (target: string): string => (isWindows(target) ? 'zip' : 'tar.gz');
+
+/** File name of the naspeed binary for a target. */
+export const binaryName = (target: string): string => (isWindows(target) ? 'naspeed.exe' : 'naspeed');
 
 /** `naspeed-v0.1.0-aarch64-apple-darwin`: archive stem and its top-level dir. */
 export const archiveStem = (tag: string, target: string): string => `naspeed-${tag}-${target}`;
@@ -92,14 +104,16 @@ export async function resolveTag(version: string, token: string): Promise<string
 /** Downloads, verifies and caches naspeed; returns the binary's path. */
 export async function install(tag: string, target: string): Promise<string> {
   const version = tag.replace(/^v/, '');
+  const bin = binaryName(target);
   const cached = tc.find('naspeed', version, target);
   if (cached) {
     ui.info('found in the runner tool cache', {path: cached});
-    return path.join(cached, 'naspeed');
+    return path.join(cached, bin);
   }
 
   const stem = archiveStem(tag, target);
-  const archiveUrl = releaseUrl(tag, `${stem}.tar.gz`);
+  const file = `${stem}.${archiveExt(target)}`;
+  const archiveUrl = releaseUrl(tag, file);
   ui.info('downloading', {url: archiveUrl});
   const archive = await tc.downloadTool(archiveUrl);
   const sums = await tc.downloadTool(`${archiveUrl}.sha256`);
@@ -107,15 +121,15 @@ export async function install(tag: string, target: string): Promise<string> {
   const expected = parseSha256(fs.readFileSync(sums, 'utf8'));
   const actual = crypto.createHash('sha256').update(fs.readFileSync(archive)).digest('hex');
   if (actual !== expected) {
-    throw new Error(`checksum mismatch for ${stem}.tar.gz: expected ${expected}, got ${actual}`);
+    throw new Error(`checksum mismatch for ${file}: expected ${expected}, got ${actual}`);
   }
   ui.info('checksum verified', {sha256: actual.slice(0, 12)});
 
-  const extracted = await tc.extractTar(archive);
+  const extracted = archiveExt(target) === 'zip' ? await tc.extractZip(archive) : await tc.extractTar(archive);
   const dir = path.join(extracted, stem);
-  if (!fs.existsSync(path.join(dir, 'naspeed'))) {
-    throw new Error(`${stem}.tar.gz has no ${stem}/naspeed`);
+  if (!fs.existsSync(path.join(dir, bin))) {
+    throw new Error(`${file} has no ${stem}/${bin}`);
   }
   const cachedDir = await tc.cacheDir(dir, 'naspeed', version, target);
-  return path.join(cachedDir, 'naspeed');
+  return path.join(cachedDir, bin);
 }

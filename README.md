@@ -3,8 +3,8 @@
 GitHub Action for [naspeed](https://github.com/dacsang97/naspeed), the
 transparent `RUSTC_WRAPPER` build cache. One step:
 
-1. downloads the naspeed release for the runner (Linux and macOS, x64 and
-   arm64), verifies its checksum and keeps it in the runner tool cache;
+1. downloads the naspeed release for the runner (Linux, macOS and Windows,
+   x64 and arm64), verifies its checksum and keeps it in the runner tool cache;
 2. runs `naspeed setup`, so every later `cargo` call in the job goes through
    naspeed (`ns` is on `PATH` too);
 3. restores the naspeed store from the GitHub Actions cache and, at the end of
@@ -87,20 +87,20 @@ Only put naspeed on `PATH`, without touching cargo's config or the cache:
 
 ## Inputs
 
-| Name           | Default               | Description                                                                                           |
-| -------------- | --------------------- | ----------------------------------------------------------------------------------------------------- |
-| `version`      | `latest`              | `latest`, an exact version (`0.1.0` or `v0.1.0`) or a semver range (`~0.1`)                           |
-| `args`         |                       | Arguments for naspeed, run after setup and restore, e.g. `test --locked`; quotes work like in a shell |
-| `workdir`      | `.`                   | Working directory for `args`, relative to the repository root                                         |
-| `summary`      | `true`                | Write the naspeed report to the job summary                                                           |
-| `store`        | `~/.naspeed`          | naspeed store directory                                                                               |
-| `setup-args`   |                       | Extra arguments for `naspeed setup`, e.g. `--cross --install-targets`                                 |
-| `install-only` | `false`               | Only install naspeed; no `naspeed setup`, no cache                                                    |
-| `cache`        | `auto`                | `auto` (skipped only on a self-hosted runner whose store is already warm), `true` or `false`          |
-| `cache-key`    |                       | Override the automatic cache slot (workflow, job and step); rarely needed                             |
-| `cache-save`   | `auto`                | `auto` (pushes to the default branch only), `true` or `false`                                         |
-| `cache-max-gb` | `3`                   | Size cap of the exported store (GitHub allows 10 GB per repository)                                   |
-| `token`        | `${{ github.token }}` | Token used to look up naspeed releases                                                                |
+| Name           | Default               | Description                                                                                                   |
+| -------------- | --------------------- | ------------------------------------------------------------------------------------------------------------- |
+| `version`      | `latest`              | `latest`, an exact version (`0.1.0` or `v0.1.0`) or a semver range (`~0.1`)                                   |
+| `args`         |                       | Arguments for naspeed, run after setup and restore, e.g. `test --locked`; quotes work like in a shell         |
+| `workdir`      | `.`                   | Working directory for `args`, relative to the repository root                                                 |
+| `summary`      | `true`                | Write the naspeed report to the job summary                                                                   |
+| `store`        | `~/.naspeed`          | naspeed store directory; on Windows the default follows the workspace drive (`D:\.naspeed` on hosted runners) |
+| `setup-args`   |                       | Extra arguments for `naspeed setup`, e.g. `--cross --install-targets`                                         |
+| `install-only` | `false`               | Only install naspeed; no `naspeed setup`, no cache                                                            |
+| `cache`        | `auto`                | `auto` (skipped only on a self-hosted runner whose store is already warm), `true` or `false`                  |
+| `cache-key`    |                       | Override the automatic cache slot (workflow, job and step); rarely needed                                     |
+| `cache-save`   | `auto`                | `auto` (pushes to the default branch only), `true` or `false`                                                 |
+| `cache-max-gb` | `3`                   | Size cap of the exported store (GitHub allows 10 GB per repository)                                           |
+| `token`        | `${{ github.token }}` | Token used to look up naspeed releases                                                                        |
 
 ## Outputs
 

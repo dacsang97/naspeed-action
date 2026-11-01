@@ -135,7 +135,7 @@ async function run(): Promise<void> {
   const cargoBin = path.join(process.env.CARGO_HOME || path.join(os.homedir(), '.cargo'), 'bin');
   core.addPath(cargoBin);
   await runNaspeedOrThrow(bin, ['setup', '--store', inputs.store, ...inputs.setupArgs], 0);
-  const naspeed = path.join(cargoBin, 'naspeed');
+  const naspeed = path.join(cargoBin, installer.binaryName(target));
 
   let restored: string | undefined;
   let skipped: string | undefined;

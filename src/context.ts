@@ -19,11 +19,28 @@ export interface Inputs {
   token: string;
 }
 
-/** `~` and `~/…` expand to the runner's home directory. */
+/** `~` and `~/…` (or `~\…`) expand to the runner's home directory. */
 export const expandHome = (p: string, home: string = os.homedir()): string => {
   if (p === '~') return home;
-  if (p.startsWith('~/')) return path.join(home, p.slice(2));
+  if (p.startsWith('~/') || p.startsWith('~\\')) return path.join(home, p.slice(2));
   return p;
+};
+
+/**
+ * The store when the `store` input is empty: `~/.naspeed`, except on Windows
+ * when the workspace is on another drive than the home directory (hosted
+ * runners check out on D:, home is on C:). naspeed only caches through a
+ * store on the target dir's volume, so it goes to `<drive>:\.naspeed` then.
+ */
+export const defaultStore = (platform: string, home: string, workspace: string): string => {
+  if (platform === 'win32') {
+    const root = path.win32.parse(workspace).root;
+    if (root && root.toLowerCase() !== path.win32.parse(home).root.toLowerCase()) {
+      return path.win32.join(root, '.naspeed');
+    }
+    return path.win32.join(home, '.naspeed');
+  }
+  return path.join(home, '.naspeed');
 };
 
 /**
@@ -101,7 +118,9 @@ export function useActionsCache(mode: CacheMode, runnerEnvironment: string | und
 export function getInputs(): Inputs {
   return {
     version: core.getInput('version') || 'latest',
-    store: expandHome(core.getInput('store') || '~/.naspeed'),
+    store: core.getInput('store')
+      ? expandHome(core.getInput('store'))
+      : defaultStore(process.platform, os.homedir(), process.env.GITHUB_WORKSPACE || process.cwd()),
     setupArgs: splitArgs(core.getInput('setup-args')),
     args: splitArgs(core.getInput('args')),
     workdir: path.resolve(process.env.GITHUB_WORKSPACE || process.cwd(), core.getInput('workdir') || '.'),

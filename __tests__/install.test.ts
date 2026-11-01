@@ -1,5 +1,5 @@
 import {describe, expect, it} from 'vite-plus/test';
-import {archiveStem, parseSha256, pickTag, releaseUrl, targetFor} from '../src/install';
+import {archiveExt, archiveStem, binaryName, parseSha256, pickTag, releaseUrl, targetFor} from '../src/install';
 
 describe('targetFor', () => {
   it('maps runners to release targets', () => {
@@ -7,10 +7,13 @@ describe('targetFor', () => {
     expect(targetFor('linux', 'arm64')).toBe('aarch64-unknown-linux-musl');
     expect(targetFor('darwin', 'x64')).toBe('x86_64-apple-darwin');
     expect(targetFor('darwin', 'arm64')).toBe('aarch64-apple-darwin');
+    expect(targetFor('win32', 'x64')).toBe('x86_64-pc-windows-msvc');
+    expect(targetFor('win32', 'arm64')).toBe('aarch64-pc-windows-msvc');
   });
 
   it('rejects platforms without a build', () => {
-    expect(() => targetFor('win32', 'x64')).toThrow(/no build for win32-x64/);
+    expect(() => targetFor('freebsd', 'x64')).toThrow(/no build for freebsd-x64/);
+    expect(() => targetFor('win32', 'ia32')).toThrow(/no build for win32-ia32/);
   });
 });
 
@@ -21,6 +24,13 @@ describe('release assets', () => {
     expect(releaseUrl('v0.1.0', `${stem}.tar.gz`)).toBe(
       'https://github.com/dacsang97/naspeed/releases/download/v0.1.0/naspeed-v0.1.0-aarch64-apple-darwin.tar.gz'
     );
+  });
+
+  it('are zips holding naspeed.exe on Windows', () => {
+    expect(archiveExt('x86_64-pc-windows-msvc')).toBe('zip');
+    expect(binaryName('aarch64-pc-windows-msvc')).toBe('naspeed.exe');
+    expect(archiveExt('x86_64-unknown-linux-musl')).toBe('tar.gz');
+    expect(binaryName('aarch64-apple-darwin')).toBe('naspeed');
   });
 });
 

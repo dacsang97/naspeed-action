@@ -19,8 +19,8 @@ inputs:
     default: '.'
     required: false
   store:
-    description: 'naspeed store directory'
-    default: '~/.naspeed'
+    description: 'naspeed store directory. Empty: ~/.naspeed, or on Windows <drive>:\.naspeed on the workspace drive when that is not the home drive (naspeed caches only through a store on the same volume as target/)'
+    default: ''
     required: false
   setup-args:
     description: 'Extra arguments for `naspeed setup`, e.g. `--cross --install-targets`'

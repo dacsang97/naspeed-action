@@ -1,5 +1,13 @@
 import {describe, expect, it} from 'vite-plus/test';
-import {expandHome, parseCacheSave, parseMaxGb, parseCacheMode, splitArgs, useActionsCache} from '../src/context';
+import {
+  defaultStore,
+  expandHome,
+  parseCacheSave,
+  parseMaxGb,
+  parseCacheMode,
+  splitArgs,
+  useActionsCache
+} from '../src/context';
 
 describe('expandHome', () => {
   it('expands ~ and ~/ only', () => {
@@ -7,6 +15,18 @@ describe('expandHome', () => {
     expect(expandHome('~/.naspeed', '/home/runner')).toBe('/home/runner/.naspeed');
     expect(expandHome('/mnt/store', '/home/runner')).toBe('/mnt/store');
     expect(expandHome('~other/x', '/home/runner')).toBe('~other/x');
+  });
+});
+
+describe('defaultStore', () => {
+  it('is ~/.naspeed off Windows', () => {
+    expect(defaultStore('linux', '/home/runner', '/home/runner/work/r/r')).toBe('/home/runner/.naspeed');
+    expect(defaultStore('darwin', '/Users/runner', '/Users/runner/work/r/r')).toBe('/Users/runner/.naspeed');
+  });
+
+  it('follows the workspace drive on Windows', () => {
+    expect(defaultStore('win32', 'C:\\Users\\runneradmin', 'D:\\a\\r\\r')).toBe('D:\\.naspeed');
+    expect(defaultStore('win32', 'C:\\Users\\me', 'c:\\src\\app')).toBe('C:\\Users\\me\\.naspeed');
   });
 });
 
