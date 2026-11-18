@@ -22,6 +22,10 @@ inputs:
     description: 'naspeed store directory. Empty: ~/.naspeed, or on Windows <drive>:\.naspeed on the workspace drive when that is not the home drive (naspeed caches only through a store on the same volume as target/)'
     default: ''
     required: false
+  setup:
+    description: 'Run `naspeed setup`: auto (only when Cargo.toml is present), true or false. Go-only projects should use auto/false until naspeed setup supports Go'
+    default: 'auto'
+    required: false
   setup-args:
     description: 'Extra arguments for `naspeed setup`, e.g. `--cross --install-targets`'
     required: false
@@ -53,6 +57,29 @@ inputs:
     description: 'GitHub token used to look up naspeed releases'
     default: ${{ github.token }}
     required: false
+  private-token:
+    description: 'Token for private GitHub Go modules; masked and read by a temporary github.com-only credential helper'
+    required: false
+  private-username:
+    description: 'Username paired with private-token (GitHub tokens normally use x-access-token)'
+    default: 'x-access-token'
+    required: false
+  goproxy-token:
+    description: 'Token for authenticated HTTPS GOPROXY hosts; masked and stored only in a temporary netrc'
+    required: false
+  goproxy-username:
+    description: 'Username paired with goproxy-token'
+    default: 'token'
+    required: false
+  goprivate:
+    description: 'GOPRIVATE fallback, used only when GOPRIVATE is not already set'
+    required: false
+  gonosumdb:
+    description: 'GONOSUMDB fallback, used only when GONOSUMDB is not already set'
+    required: false
+  goproxy:
+    description: 'Credential-free GOPROXY fallback, used only when GOPROXY is not already set; comma and pipe separators are supported'
+    required: false
 
 outputs:
   version:
@@ -68,4 +95,4 @@ runs:
   using: 'node24'
   main: 'dist/index.js'
   post: 'dist/index.js'
-  post-if: success()
+  post-if: always()

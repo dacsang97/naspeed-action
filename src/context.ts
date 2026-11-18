@@ -1,8 +1,10 @@
 import * as os from 'os';
+import * as fs from 'node:fs';
 import * as path from 'path';
 import * as core from '@actions/core';
 
 export type CacheSave = 'auto' | 'true' | 'false';
+export type SetupMode = 'auto' | 'true' | 'false';
 
 export interface Inputs {
   version: string;
@@ -10,6 +12,7 @@ export interface Inputs {
   setupArgs: string[];
   args: string[];
   workdir: string;
+  setup: SetupMode;
   installOnly: boolean;
   summary: boolean;
   cache: CacheMode;
@@ -17,6 +20,13 @@ export interface Inputs {
   cacheSave: CacheSave;
   cacheMaxGb: number;
   token: string;
+  privateToken: string;
+  privateUsername: string;
+  goProxyToken: string;
+  goProxyUsername: string;
+  goPrivate: string;
+  goNoSumDb: string;
+  goProxy: string;
 }
 
 /** `~` and `~/…` (or `~\…`) expand to the runner's home directory. */
@@ -95,6 +105,27 @@ export const parseMaxGb = (value: string): number => {
   return gb;
 };
 
+export const parseSetupMode = (value: string): SetupMode => {
+  const v = (value || 'auto').trim().toLowerCase();
+  if (v === 'auto' || v === 'true' || v === 'false') return v;
+  throw new Error(`setup must be auto, true or false (got "${value}")`);
+};
+
+/** Auto only configures Cargo projects; setup currently has no Go integration. */
+export const shouldSetup = (mode: SetupMode, workdir: string): boolean => {
+  if (mode !== 'auto') return mode === 'true';
+  return fs.existsSync(path.join(workdir, 'Cargo.toml'));
+};
+
+/**
+ * Keep this action and later job steps on the same store. Go releases skip
+ * Cargo-specific setup, so they rely on the standard NASPEED_STORE contract.
+ */
+export function exportStore(store: string): void {
+  process.env.NASPEED_STORE = store;
+  core.exportVariable('NASPEED_STORE', store);
+}
+
 export type CacheMode = 'auto' | 'true' | 'false';
 
 export function parseCacheMode(input: string): CacheMode {
@@ -124,6 +155,7 @@ export function getInputs(): Inputs {
     setupArgs: splitArgs(core.getInput('setup-args')),
     args: splitArgs(core.getInput('args')),
     workdir: path.resolve(process.env.GITHUB_WORKSPACE || process.cwd(), core.getInput('workdir') || '.'),
+    setup: parseSetupMode(core.getInput('setup')),
     installOnly: core.getBooleanInput('install-only'),
     summary: core.getBooleanInput('summary'),
     cache: parseCacheMode(core.getInput('cache')),
@@ -131,6 +163,13 @@ export function getInputs(): Inputs {
     cacheKey: core.getInput('cache-key'),
     cacheSave: parseCacheSave(core.getInput('cache-save')),
     cacheMaxGb: parseMaxGb(core.getInput('cache-max-gb')),
-    token: core.getInput('token')
+    token: core.getInput('token'),
+    privateToken: core.getInput('private-token'),
+    privateUsername: core.getInput('private-username') || 'x-access-token',
+    goProxyToken: core.getInput('goproxy-token'),
+    goProxyUsername: core.getInput('goproxy-username') || 'token',
+    goPrivate: core.getInput('goprivate'),
+    goNoSumDb: core.getInput('gonosumdb'),
+    goProxy: core.getInput('goproxy')
   };
 }

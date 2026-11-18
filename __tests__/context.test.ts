@@ -1,10 +1,15 @@
 import {describe, expect, it} from 'vite-plus/test';
+import * as fs from 'node:fs';
+import * as os from 'node:os';
+import * as path from 'node:path';
 import {
   defaultStore,
   expandHome,
   parseCacheSave,
   parseMaxGb,
   parseCacheMode,
+  parseSetupMode,
+  shouldSetup,
   splitArgs,
   useActionsCache
 } from '../src/context';
@@ -83,5 +88,25 @@ describe('useActionsCache', () => {
     expect(parseCacheMode('')).toBe('auto');
     expect(parseCacheMode(' TRUE ')).toBe('true');
     expect(() => parseCacheMode('yes')).toThrow(/auto, true or false/);
+  });
+});
+
+describe('setup mode', () => {
+  it('auto configures Cargo projects but not Go-only projects', () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'naspeed-action-'));
+    expect(shouldSetup('auto', root)).toBe(false);
+    fs.writeFileSync(path.join(root, 'go.mod'), 'module example.com/app\n');
+    expect(shouldSetup('auto', root)).toBe(false);
+    fs.writeFileSync(path.join(root, 'Cargo.toml'), '[package]\nname="app"\n');
+    expect(shouldSetup('auto', root)).toBe(true);
+    expect(shouldSetup('false', root)).toBe(false);
+    expect(shouldSetup('true', root)).toBe(true);
+    fs.rmSync(root, {recursive: true, force: true});
+  });
+
+  it('validates the mode', () => {
+    expect(parseSetupMode('')).toBe('auto');
+    expect(parseSetupMode(' TRUE ')).toBe('true');
+    expect(() => parseSetupMode('go')).toThrow(/auto, true or false/);
   });
 });

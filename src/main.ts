@@ -3,6 +3,7 @@ import * as path from 'path';
 import * as core from '@actions/core';
 import * as context from './context';
 import * as installer from './install';
+import * as privateGo from './private-go';
 import * as report from './report';
 import {runNaspeed, runNaspeedOrThrow} from './run-naspeed';
 import * as storeCache from './store-cache';
@@ -12,6 +13,7 @@ import * as ui from './ui';
 const IS_POST = 'isPost';
 const SAVE = 'save';
 const REPORT = 'report';
+const PRIVATE_GO = 'privateGo';
 
 interface SaveState {
   naspeed: string;
@@ -61,7 +63,7 @@ async function restore(
       scope,
       os: process.env.RUNNER_OS || os.platform(),
       arch: process.env.RUNNER_ARCH || os.arch(),
-      rustc: await storeCache.rustcVersion(workspace),
+      toolchain: await storeCache.toolchainVersion(inputs.workdir),
       lockHash: await storeCache.lockHash()
     },
     {
@@ -114,7 +116,18 @@ async function writeReport(state: ReportState, save: report.SaveOutcome): Promis
 
 async function run(): Promise<void> {
   const inputs = context.getInputs();
+  context.exportStore(inputs.store);
   core.saveState(IS_POST, 'true');
+  const privateGoState = privateGo.configure({
+    token: inputs.privateToken,
+    username: inputs.privateUsername,
+    proxyToken: inputs.goProxyToken,
+    proxyUsername: inputs.goProxyUsername,
+    goPrivate: inputs.goPrivate,
+    goNoSumDb: inputs.goNoSumDb,
+    goProxy: inputs.goProxy
+  });
+  if (privateGoState) core.saveState(PRIVATE_GO, JSON.stringify(privateGoState));
 
   const {tag, target, bin} = await install(inputs);
   const version = tag.replace(/^v/, '');
@@ -132,10 +145,18 @@ async function run(): Promise<void> {
 
   // `setup` installs naspeed and the `ns` alias into $CARGO_HOME/bin and
   // points build.rustc-wrapper in $CARGO_HOME/config.toml at it.
+  const setup = context.shouldSetup(inputs.setup, inputs.workdir);
   const cargoBin = path.join(process.env.CARGO_HOME || path.join(os.homedir(), '.cargo'), 'bin');
-  core.addPath(cargoBin);
-  await runNaspeedOrThrow(bin, ['setup', '--store', inputs.store, ...inputs.setupArgs], 0);
-  const naspeed = path.join(cargoBin, installer.binaryName(target));
+  let naspeed = bin;
+  if (setup) {
+    // `setup` installs naspeed and the `ns` alias into $CARGO_HOME/bin and
+    // points build.rustc-wrapper in $CARGO_HOME/config.toml at it.
+    core.addPath(cargoBin);
+    await runNaspeedOrThrow(bin, ['setup', '--store', inputs.store, ...inputs.setupArgs], 0);
+    naspeed = path.join(cargoBin, installer.binaryName(target));
+  } else {
+    ui.info('naspeed setup skipped', {mode: inputs.setup});
+  }
 
   let restored: string | undefined;
   let skipped: string | undefined;
@@ -186,27 +207,32 @@ async function run(): Promise<void> {
 }
 
 async function post(): Promise<void> {
-  const saveText = core.getState(SAVE);
-  const reportText = core.getState(REPORT);
-  let outcome: report.SaveOutcome = {status: 'off'};
-  if (saveText) {
-    const {naspeed, store, dir, key, maxGb}: SaveState = JSON.parse(saveText);
-    const start = Date.now();
-    ui.info('saving store', {key});
-    try {
-      outcome = await ui.nested(() => storeCache.save(naspeed, store, dir, key, maxGb));
-    } catch (error) {
-      // A failed save only costs the next run its warm start: warn, never fail.
-      const reason = (error as Error).message;
-      core.warning(`naspeed store not saved: ${reason}`);
-      outcome = {status: 'failed', reason};
+  const privateGoText = core.getState(PRIVATE_GO);
+  try {
+    const saveText = core.getState(SAVE);
+    const reportText = core.getState(REPORT);
+    let outcome: report.SaveOutcome = {status: 'off'};
+    if (saveText) {
+      const {naspeed, store, dir, key, maxGb}: SaveState = JSON.parse(saveText);
+      const start = Date.now();
+      ui.info('saving store', {key});
+      try {
+        outcome = await ui.nested(() => storeCache.save(naspeed, store, dir, key, maxGb));
+      } catch (error) {
+        // A failed save only costs the next run its warm start: warn, never fail.
+        const reason = (error as Error).message;
+        core.warning(`naspeed store not saved: ${reason}`);
+        outcome = {status: 'failed', reason};
+      }
+      ui.took(start);
     }
-    ui.took(start);
-  }
-  if (reportText) {
-    const state: ReportState = JSON.parse(reportText);
-    if (!saveText && state.skipped) outcome = {status: 'skipped', reason: state.skipped};
-    await writeReport(state, outcome);
+    if (reportText) {
+      const state: ReportState = JSON.parse(reportText);
+      if (!saveText && state.skipped) outcome = {status: 'skipped', reason: state.skipped};
+      await writeReport(state, outcome);
+    }
+  } finally {
+    if (privateGoText) privateGo.cleanup(JSON.parse(privateGoText));
   }
 }
 
