@@ -6,20 +6,20 @@ import {autoScope, cacheKeys, shouldSave, storeIsWarm, transferDir} from '../src
 
 describe('cacheKeys', () => {
   const {key, restoreKeys} = cacheKeys(
-    {scope: 'ci-test-1a2b3c4d', os: 'Linux', arch: 'X64', rustc: '1.98.0', lockHash: 'abc'},
+    {scope: 'ci-test-1a2b3c4d', os: 'Linux', arch: 'X64', toolchain: 'rustc-1.98.0', lockHash: 'abc'},
     {id: '42', attempt: '1'},
     true
   );
 
   it('makes every save a new key', () => {
-    expect(key).toBe('naspeed-Linux-X64-1.98.0-ci-test-1a2b3c4d-abc-42-1');
+    expect(key).toBe('naspeed-Linux-X64-rustc-1.98.0-ci-test-1a2b3c4d-abc-42-1');
   });
 
   it('restores the same job and lockfile, then the same job, then any job for the compiler', () => {
     expect(restoreKeys).toEqual([
-      'naspeed-Linux-X64-1.98.0-ci-test-1a2b3c4d-abc-',
-      'naspeed-Linux-X64-1.98.0-ci-test-1a2b3c4d-',
-      'naspeed-Linux-X64-1.98.0-'
+      'naspeed-Linux-X64-rustc-1.98.0-ci-test-1a2b3c4d-abc-',
+      'naspeed-Linux-X64-rustc-1.98.0-ci-test-1a2b3c4d-',
+      'naspeed-Linux-X64-rustc-1.98.0-'
     ]);
     for (const prefix of restoreKeys) expect(key.startsWith(prefix)).toBe(true);
   });
@@ -28,11 +28,11 @@ describe('cacheKeys', () => {
 describe('cacheKeys with an explicit cache-key', () => {
   it('never falls back to other jobs', () => {
     const {restoreKeys} = cacheKeys(
-      {scope: 'e2e-7-1', os: 'Linux', arch: 'X64', rustc: '1.98.0', lockHash: 'abc'},
+      {scope: 'e2e-7-1', os: 'Linux', arch: 'X64', toolchain: 'go-1.25.4', lockHash: 'abc'},
       {id: '7', attempt: '1'},
       false
     );
-    expect(restoreKeys).toEqual(['naspeed-Linux-X64-1.98.0-e2e-7-1-abc-', 'naspeed-Linux-X64-1.98.0-e2e-7-1-']);
+    expect(restoreKeys).toEqual(['naspeed-Linux-X64-go-1.25.4-e2e-7-1-abc-', 'naspeed-Linux-X64-go-1.25.4-e2e-7-1-']);
   });
 });
 
