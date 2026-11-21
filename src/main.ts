@@ -21,6 +21,7 @@ interface SaveState {
   dir: string;
   key: string;
   maxGb: number;
+  minDeltaMb: number;
 }
 
 /** Everything the job summary needs besides the closing counters. */
@@ -96,7 +97,14 @@ async function restore(
   return {
     restored: matched || '',
     scope,
-    save: {naspeed, store: inputs.store, dir, key: keys.key, maxGb: inputs.cacheMaxGb}
+    save: {
+      naspeed,
+      store: inputs.store,
+      dir,
+      key: keys.key,
+      maxGb: inputs.cacheMaxGb,
+      minDeltaMb: inputs.saveMinDeltaMb
+    }
   };
 }
 
@@ -175,7 +183,15 @@ async function run(): Promise<void> {
     if (r.save) core.saveState(SAVE, JSON.stringify(r.save));
   }
 
-  const before = inputs.summary ? await report.snapshot(naspeed) : undefined;
+  // Untimed until it showed up as a multi-second gap after restore in CI
+  // logs: `naspeed stats` walks the store usage index.
+  let before: report.Counters | undefined;
+  if (inputs.summary) {
+    const snapshotStart = Date.now();
+    before = await report.snapshot(naspeed);
+    ui.info('report snapshot');
+    ui.took(snapshotStart);
+  }
   const state: ReportState | undefined = before && {
     naspeed,
     before,
@@ -213,11 +229,11 @@ async function post(): Promise<void> {
     const reportText = core.getState(REPORT);
     let outcome: report.SaveOutcome = {status: 'off'};
     if (saveText) {
-      const {naspeed, store, dir, key, maxGb}: SaveState = JSON.parse(saveText);
+      const {naspeed, store, dir, key, maxGb, minDeltaMb}: SaveState = JSON.parse(saveText);
       const start = Date.now();
       ui.info('saving store', {key});
       try {
-        outcome = await ui.nested(() => storeCache.save(naspeed, store, dir, key, maxGb));
+        outcome = await ui.nested(() => storeCache.save(naspeed, store, dir, key, maxGb, minDeltaMb));
       } catch (error) {
         // A failed save only costs the next run its warm start: warn, never fail.
         const reason = (error as Error).message;

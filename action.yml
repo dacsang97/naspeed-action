@@ -53,6 +53,10 @@ inputs:
     description: 'Size cap of the exported store, in GB (GitHub allows 10 GB per repository)'
     default: '3'
     required: false
+  save-min-delta-mb:
+    description: 'Skip re-saving the store when the export copied fewer new bytes than this (a saved cache is a full-payload immutable key). Requires a naspeed new enough to write the export summary; older versions always save. 0 always saves'
+    default: '50'
+    required: false
   token:
     description: 'GitHub token used to look up naspeed releases'
     default: ${{ github.token }}

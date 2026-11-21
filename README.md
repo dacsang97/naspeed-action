@@ -214,28 +214,29 @@ Only put naspeed on `PATH`, without touching cargo's config or the cache:
 
 ## Inputs
 
-| Name               | Default               | Description                                                                                                   |
-| ------------------ | --------------------- | ------------------------------------------------------------------------------------------------------------- |
-| `version`          | `latest`              | `latest`, an exact version (`0.1.0` or `v0.1.0`) or a semver range (`~0.1`)                                   |
-| `args`             |                       | Arguments for naspeed, run after setup and restore, e.g. `release --snapshot`; quotes work like in a shell    |
-| `workdir`          | `.`                   | Working directory for `args`, relative to the repository root                                                 |
-| `summary`          | `true`                | Write the naspeed report to the job summary                                                                   |
-| `store`            | `~/.naspeed`          | naspeed store directory; on Windows the default follows the workspace drive (`D:\.naspeed` on hosted runners) |
-| `setup`            | `auto`                | `auto` runs Cargo setup only when `Cargo.toml` exists; `true` or `false` override detection                   |
-| `setup-args`       |                       | Extra arguments for `naspeed setup`, e.g. `--cross --install-targets`; only used when setup runs              |
-| `install-only`     | `false`               | Only install naspeed; no setup or cache                                                                       |
-| `cache`            | `auto`                | `auto` (skipped only on a self-hosted runner whose store is already warm), `true` or `false`                  |
-| `cache-key`        |                       | Override the automatic cache slot (workflow, job and step); rarely needed                                     |
-| `cache-save`       | `auto`                | `auto` (pushes to the default branch only), `true` or `false`                                                 |
-| `cache-max-gb`     | `3`                   | Size cap of the exported store (GitHub allows 10 GB per repository)                                           |
-| `token`            | `${{ github.token }}` | Token used to look up naspeed releases                                                                        |
-| `private-token`    |                       | Masked token served only to `github.com` for private Go modules                                               |
-| `private-username` | `x-access-token`      | Username paired with `private-token`                                                                          |
-| `goproxy-token`    |                       | Separate masked token for authenticated HTTPS GOPROXY hosts                                                   |
-| `goproxy-username` | `token`               | Username paired with `goproxy-token`                                                                          |
-| `goprivate`        |                       | `GOPRIVATE` fallback; an existing job environment value is preserved                                          |
-| `gonosumdb`        |                       | `GONOSUMDB` fallback; an existing job environment value is preserved                                          |
-| `goproxy`          |                       | Credential-free `GOPROXY` fallback; comma and pipe separators are supported                                   |
+| Name                | Default               | Description                                                                                                                                                                                                         |
+| ------------------- | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `version`           | `latest`              | `latest`, an exact version (`0.1.0` or `v0.1.0`) or a semver range (`~0.1`)                                                                                                                                         |
+| `args`              |                       | Arguments for naspeed, run after setup and restore, e.g. `release --snapshot`; quotes work like in a shell                                                                                                          |
+| `workdir`           | `.`                   | Working directory for `args`, relative to the repository root                                                                                                                                                       |
+| `summary`           | `true`                | Write the naspeed report to the job summary                                                                                                                                                                         |
+| `store`             | `~/.naspeed`          | naspeed store directory; on Windows the default follows the workspace drive (`D:\.naspeed` on hosted runners)                                                                                                       |
+| `setup`             | `auto`                | `auto` runs Cargo setup only when `Cargo.toml` exists; `true` or `false` override detection                                                                                                                         |
+| `setup-args`        |                       | Extra arguments for `naspeed setup`, e.g. `--cross --install-targets`; only used when setup runs                                                                                                                    |
+| `install-only`      | `false`               | Only install naspeed; no setup or cache                                                                                                                                                                             |
+| `cache`             | `auto`                | `auto` (skipped only on a self-hosted runner whose store is already warm), `true` or `false`                                                                                                                        |
+| `cache-key`         |                       | Override the automatic cache slot (workflow, job and step); rarely needed                                                                                                                                           |
+| `cache-save`        | `auto`                | `auto` (pushes to the default branch only), `true` or `false`                                                                                                                                                       |
+| `cache-max-gb`      | `3`                   | Size cap of the exported store (GitHub allows 10 GB per repository)                                                                                                                                                 |
+| `save-min-delta-mb` | `50`                  | Skip re-saving when the export copied fewer new MB than this (a saved cache is a full-payload immutable key); `0` always saves. Needs a naspeed new enough to write the export summary; older versions always save. |
+| `token`             | `${{ github.token }}` | Token used to look up naspeed releases                                                                                                                                                                              |
+| `private-token`     |                       | Masked token served only to `github.com` for private Go modules                                                                                                                                                     |
+| `private-username`  | `x-access-token`      | Username paired with `private-token`                                                                                                                                                                                |
+| `goproxy-token`     |                       | Separate masked token for authenticated HTTPS GOPROXY hosts                                                                                                                                                         |
+| `goproxy-username`  | `token`               | Username paired with `goproxy-token`                                                                                                                                                                                |
+| `goprivate`         |                       | `GOPRIVATE` fallback; an existing job environment value is preserved                                                                                                                                                |
+| `gonosumdb`         |                       | `GONOSUMDB` fallback; an existing job environment value is preserved                                                                                                                                                |
+| `goproxy`           |                       | Credential-free `GOPROXY` fallback; comma and pipe separators are supported                                                                                                                                         |
 
 ## Outputs
 

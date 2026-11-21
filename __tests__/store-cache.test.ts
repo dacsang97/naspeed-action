@@ -2,7 +2,15 @@ import {describe, expect, it} from 'vite-plus/test';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import {autoScope, cacheKeys, shouldSave, storeIsWarm, transferDir} from '../src/store-cache';
+import {
+  autoScope,
+  cacheKeys,
+  plannedSave,
+  readExportSummary,
+  shouldSave,
+  storeIsWarm,
+  transferDir
+} from '../src/store-cache';
 
 describe('cacheKeys', () => {
   const {key, restoreKeys} = cacheKeys(
@@ -83,5 +91,45 @@ describe('storeIsWarm', () => {
     fs.mkdirSync(path.join(store, 'entries', 'ab'));
     expect(storeIsWarm(store)).toBe(true);
     fs.rmSync(store, {recursive: true, force: true});
+  });
+});
+
+describe('plannedSave', () => {
+  const mb = 1024 * 1024;
+
+  it('saves when there is no summary (older naspeed keeps the old behavior)', () => {
+    expect(plannedSave(undefined, 50)).toEqual({skip: false, reason: ''});
+  });
+
+  it('skips when the export copied less than the threshold', () => {
+    const {skip, reason} = plannedSave({version: 1, bytes_new: 12.4 * mb, total_bytes: 600 * mb}, 50);
+    expect(skip).toBe(true);
+    expect(reason).toBe('store nearly unchanged since restore: 12.4 MB new < 50 MB threshold');
+  });
+
+  it('saves at or above the threshold, and 0 always saves', () => {
+    expect(plannedSave({version: 1, bytes_new: 50 * mb, total_bytes: 600 * mb}, 50).skip).toBe(false);
+    expect(plannedSave({version: 1, bytes_new: 0, total_bytes: 600 * mb}, 0).skip).toBe(false);
+  });
+});
+
+describe('readExportSummary', () => {
+  it('returns undefined for a missing or malformed summary, the parsed one otherwise', async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'naspeed-export-'));
+    expect(await readExportSummary(dir)).toBeUndefined();
+
+    fs.mkdirSync(path.join(dir, '.naspeed'));
+    fs.writeFileSync(path.join(dir, '.naspeed', 'export-summary.json'), 'not json');
+    expect(await readExportSummary(dir)).toBeUndefined();
+
+    fs.writeFileSync(path.join(dir, '.naspeed', 'export-summary.json'), JSON.stringify({version: 1, total_bytes: 10}));
+    expect(await readExportSummary(dir)).toBeUndefined();
+
+    fs.writeFileSync(
+      path.join(dir, '.naspeed', 'export-summary.json'),
+      JSON.stringify({version: 1, bytes_new: 0, total_bytes: 10})
+    );
+    expect(await readExportSummary(dir)).toEqual({version: 1, bytes_new: 0, total_bytes: 10});
+    fs.rmSync(dir, {recursive: true, force: true});
   });
 });
