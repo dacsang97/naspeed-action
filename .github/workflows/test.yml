@@ -50,6 +50,10 @@ jobs:
           # when only some warm jobs were re-run.
           cache-key: e2e-${{ github.run_id }}
           cache-save: 'true'
+          # This e2e asserts the save→reuse roundtrip; a tiny crate exports
+          # far fewer than the default 50 MB threshold, which would skip the
+          # save and leave reuse with nothing to restore.
+          save-min-delta-mb: '0'
           args: test
           workdir: ${{ runner.temp }}/app
       - name: Check outputs
