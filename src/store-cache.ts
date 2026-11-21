@@ -151,13 +151,52 @@ export async function restore(
   return matched;
 }
 
+/** The `.naspeed/export-summary.json` a recent `naspeed cache export` writes. */
+export interface ExportSummary {
+  version: number;
+  /** Bytes the export actually copied; ~0 when the store is unchanged since the restore. */
+  bytes_new: number;
+  total_bytes: number;
+}
+
+/**
+ * The export summary written into the transfer dir, or undefined when it is
+ * absent or malformed (an older naspeed never wrote one — then the save
+ * decision keeps the old always-save behavior).
+ */
+export async function readExportSummary(dir: string): Promise<ExportSummary | undefined> {
+  try {
+    const parsed = JSON.parse(await fs.promises.readFile(path.join(dir, '.naspeed', 'export-summary.json'), 'utf8'));
+    if (typeof parsed?.bytes_new === 'number' && typeof parsed?.total_bytes === 'number') return parsed;
+  } catch {
+    /* absent or malformed: not a summary we can act on */
+  }
+  return undefined;
+}
+
+/**
+ * Whether an exported store is different enough from the restored cache to be
+ * worth a new ~600 MB upload. GitHub cache keys are immutable, so every save
+ * pays the full payload; skipping near-unchanged saves stops the quota churn.
+ */
+export function plannedSave(summary: ExportSummary | undefined, minDeltaMb: number): {skip: boolean; reason: string} {
+  if (!summary) return {skip: false, reason: ''};
+  const deltaMb = summary.bytes_new / (1024 * 1024);
+  if (deltaMb >= minDeltaMb) return {skip: false, reason: ''};
+  return {
+    skip: true,
+    reason: `store nearly unchanged since restore: ${deltaMb.toFixed(1)} MB new < ${minDeltaMb} MB threshold`
+  };
+}
+
 /** Exports recently used store entries and saves them under `key`. */
 export async function save(
   naspeed: string,
   store: string,
   dir: string,
   key: string,
-  maxGb: number
+  maxGb: number,
+  minDeltaMb: number
 ): Promise<SaveOutcome> {
   if (!cache.isFeatureAvailable()) {
     core.warning('The GitHub Actions cache is not available on this runner; naspeed store not saved');
@@ -165,6 +204,11 @@ export async function save(
   }
   // Export reuses objects the restore left in `dir` and prunes the rest.
   await runNaspeedOrThrow(naspeed, ['cache', 'export', dir, '--max-gb', String(maxGb), '--store', store], 0);
+  const decision = plannedSave(await readExportSummary(dir), minDeltaMb);
+  if (decision.skip) {
+    ui.info(`skip save: ${decision.reason}`, {key});
+    return {status: 'skipped', reason: decision.reason};
+  }
   try {
     await cache.saveCache([dir], key);
     ui.info('saved', {key});

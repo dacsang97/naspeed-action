@@ -7,6 +7,7 @@ import {
   expandHome,
   parseCacheSave,
   parseMaxGb,
+  parseMinDeltaMb,
   parseCacheMode,
   parseSetupMode,
   shouldSetup,
@@ -108,5 +109,18 @@ describe('setup mode', () => {
     expect(parseSetupMode('')).toBe('auto');
     expect(parseSetupMode(' TRUE ')).toBe('true');
     expect(() => parseSetupMode('go')).toThrow(/auto, true or false/);
+  });
+});
+
+describe('parseMinDeltaMb', () => {
+  it('defaults to 50 and accepts 0 (always save)', () => {
+    expect(parseMinDeltaMb('')).toBe(50);
+    expect(parseMinDeltaMb('0')).toBe(0);
+    expect(parseMinDeltaMb('120')).toBe(120);
+  });
+
+  it('rejects non-numbers and negatives', () => {
+    expect(() => parseMinDeltaMb('abc')).toThrow(/non-negative number/);
+    expect(() => parseMinDeltaMb('-1')).toThrow(/non-negative number/);
   });
 });

@@ -19,6 +19,7 @@ export interface Inputs {
   cacheKey: string;
   cacheSave: CacheSave;
   cacheMaxGb: number;
+  saveMinDeltaMb: number;
   token: string;
   privateToken: string;
   privateUsername: string;
@@ -105,6 +106,15 @@ export const parseMaxGb = (value: string): number => {
   return gb;
 };
 
+/** New-bytes threshold below which the exported store is not re-saved; 0 always saves. */
+export const parseMinDeltaMb = (value: string): number => {
+  const mb = Number(value || '50');
+  if (!Number.isFinite(mb) || mb < 0) {
+    throw new Error(`save-min-delta-mb must be a non-negative number (got "${value}")`);
+  }
+  return mb;
+};
+
 export const parseSetupMode = (value: string): SetupMode => {
   const v = (value || 'auto').trim().toLowerCase();
   if (v === 'auto' || v === 'true' || v === 'false') return v;
@@ -163,6 +173,7 @@ export function getInputs(): Inputs {
     cacheKey: core.getInput('cache-key'),
     cacheSave: parseCacheSave(core.getInput('cache-save')),
     cacheMaxGb: parseMaxGb(core.getInput('cache-max-gb')),
+    saveMinDeltaMb: parseMinDeltaMb(core.getInput('save-min-delta-mb')),
     token: core.getInput('token'),
     privateToken: core.getInput('private-token'),
     privateUsername: core.getInput('private-username') || 'x-access-token',

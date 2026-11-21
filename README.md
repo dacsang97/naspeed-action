@@ -228,6 +228,7 @@ Only put naspeed on `PATH`, without touching cargo's config or the cache:
 | `cache-key`        |                       | Override the automatic cache slot (workflow, job and step); rarely needed                                     |
 | `cache-save`       | `auto`                | `auto` (pushes to the default branch only), `true` or `false`                                                 |
 | `cache-max-gb`     | `3`                   | Size cap of the exported store (GitHub allows 10 GB per repository)                                           |
+| `save-min-delta-mb` | `50`                 | Skip re-saving when the export copied fewer new MB than this (a saved cache is a full-payload immutable key); `0` always saves. Needs a naspeed new enough to write the export summary; older versions always save. |
 | `token`            | `${{ github.token }}` | Token used to look up naspeed releases                                                                        |
 | `private-token`    |                       | Masked token served only to `github.com` for private Go modules                                               |
 | `private-username` | `x-access-token`      | Username paired with `private-token`                                                                          |
