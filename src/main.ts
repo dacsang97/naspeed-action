@@ -37,7 +37,7 @@ async function install(inputs: context.Inputs): Promise<{tag: string; target: st
   const target = installer.targetFor(os.platform(), os.arch());
   ui.info('installing naspeed', {version: inputs.version, target});
   const result = await ui.nested(async () => {
-    const tag = await installer.resolveTag(inputs.version, inputs.token);
+    const tag = await installer.resolveTag(inputs.version, inputs.token, target);
     if (tag.replace(/^v/, '') !== inputs.version.replace(/^v/, '')) ui.info('resolved', {version: tag});
     return {tag, target, bin: await installer.install(tag, target)};
   });

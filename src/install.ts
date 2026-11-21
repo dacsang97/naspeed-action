@@ -60,7 +60,14 @@ interface Release {
   tag_name: string;
   draft?: boolean;
   prerelease?: boolean;
+  assets?: {name: string}[];
 }
+
+/** The release ships an installable archive for `target`. */
+export const hasArchive = (release: Release, target: string): boolean => {
+  const file = `${archiveStem(release.tag_name, target)}.${archiveExt(target)}`;
+  return (release.assets ?? []).some(a => a.name === file);
+};
 
 /** Highest release tag satisfying `range`, ignoring drafts and prereleases. */
 export const pickTag = (releases: Release[], range: string): string | undefined => {
@@ -85,18 +92,27 @@ async function getJson<T>(url: string, token: string): Promise<T> {
 }
 
 /** Resolves `latest`, an exact version or a semver range to a release tag. */
-export async function resolveTag(version: string, token: string): Promise<string> {
+export async function resolveTag(version: string, token: string, target?: string): Promise<string> {
   const api = `https://api.github.com/repos/${RELEASE_REPO}/releases`;
   const v = version.trim();
   if (v === 'latest') {
-    return (await getJson<Release>(`${api}/latest`, token)).tag_name;
+    // The newest release's archives are uploaded by release-binaries.yml *by*
+    // a job that itself installs naspeed: at tag time "latest" has no assets
+    // yet. Pick the newest release that actually ships this target.
+    if (!target) return (await getJson<Release>(`${api}/latest`, token)).tag_name;
+    const releases = await getJson<Release[]>(`${api}?per_page=30`, token);
+    const ready = releases.find(r => !r.draft && !r.prerelease && hasArchive(r, target));
+    if (!ready) throw new Error(`no recent naspeed release has an archive for ${target}`);
+    return ready.tag_name;
   }
   const exact = semver.valid(semver.clean(v) ?? '');
   if (exact) return `v${exact}`;
   if (!semver.validRange(v)) {
     throw new Error(`version must be latest, a version or a semver range (got "${version}")`);
   }
-  const tag = pickTag(await getJson<Release[]>(`${api}?per_page=100`, token), v);
+  let releases = await getJson<Release[]>(`${api}?per_page=100`, token);
+  if (target) releases = releases.filter(r => hasArchive(r, target));
+  const tag = pickTag(releases, v);
   if (!tag) throw new Error(`no naspeed release satisfies "${version}"`);
   return tag;
 }

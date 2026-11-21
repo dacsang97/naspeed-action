@@ -1,5 +1,14 @@
 import {describe, expect, it} from 'vite-plus/test';
-import {archiveExt, archiveStem, binaryName, parseSha256, pickTag, releaseUrl, targetFor} from '../src/install';
+import {
+  archiveExt,
+  archiveStem,
+  binaryName,
+  hasArchive,
+  parseSha256,
+  pickTag,
+  releaseUrl,
+  targetFor
+} from '../src/install';
 
 describe('targetFor', () => {
   it('maps runners to release targets', () => {
@@ -65,5 +74,19 @@ describe('pickTag', () => {
 
   it('returns undefined when nothing matches', () => {
     expect(pickTag(releases, '^1')).toBeUndefined();
+  });
+});
+
+describe('hasArchive', () => {
+  const target = 'x86_64-apple-darwin';
+  const file = 'naspeed-v0.13.0-x86_64-apple-darwin.tar.gz';
+
+  it('accepts only a release shipping the exact archive', () => {
+    expect(hasArchive({tag_name: 'v0.13.0', assets: [{name: file}]}, target)).toBe(true);
+    expect(
+      hasArchive({tag_name: 'v0.13.0', assets: [{name: 'naspeed-v0.13.0-aarch64-apple-darwin.tar.gz'}]}, target)
+    ).toBe(false);
+    // Release whose tag just exists (assets land later, e.g. mid-release).
+    expect(hasArchive({tag_name: 'v0.13.0'}, target)).toBe(false);
   });
 });
